@@ -14,6 +14,8 @@ A production-grade, full-stack banking application built with **Next.js 16**, **
 ![Vercel](https://img.shields.io/badge/Deployed-Vercel-black?logo=vercel)
 ![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?logo=supabase)
 
+<img width="2778" height="1622" alt="image" src="https://github.com/user-attachments/assets/1550c02c-c61f-44e1-aa63-a40a99948de7" />
+
 ---
 
 ## Table of Contents
