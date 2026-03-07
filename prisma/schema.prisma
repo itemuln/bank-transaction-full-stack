@@ -1,0 +1,267 @@
+// =============================================================================
+// Banking System — Production Prisma Schema
+// Normalized PostgreSQL schema with RBAC, audit logging, transaction integrity
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// RBAC: Users, Roles, Permissions
+// =============================================================================
+
+model User {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique @db.VarChar(255)
+  passwordHash   String    @map("password_hash") @db.VarChar(255)
+  firstName      String    @map("first_name") @db.VarChar(100)
+  lastName       String    @map("last_name") @db.VarChar(100)
+  phone          String?   @db.VarChar(20)
+  dateOfBirth    DateTime? @map("date_of_birth") @db.Date
+  address        String?   @db.VarChar(500)
+  isActive       Boolean   @default(true) @map("is_active")
+  emailVerified  Boolean   @default(false) @map("email_verified")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until")
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  userRoles            UserRole[]
+  accounts             Account[]
+  sessions             Session[]
+  auditLogs            AuditLog[]
+  initiatedTransactions Transaction[]  @relation("TransactionInitiator")
+  approvals            TransactionApproval[]
+  passwordResets       PasswordReset[]
+
+  @@index([email])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  resource    String   @db.VarChar(100) // e.g., "accounts", "transactions"
+  action      String   @db.VarChar(50)  // e.g., "create", "read", "update", "delete", "approve"
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// =============================================================================
+// Banking: Accounts
+// =============================================================================
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+model Account {
+  id            String        @id @default(uuid()) @db.Uuid
+  accountNumber String        @unique @map("account_number") @db.VarChar(20)
+  userId        String        @map("user_id") @db.Uuid
+  type          AccountType   @default(CHECKING)
+  status        AccountStatus @default(ACTIVE)
+  balance       Decimal       @default(0) @db.Decimal(15, 2)
+  currency      String        @default("USD") @db.VarChar(3)
+  dailyLimit    Decimal       @default(10000) @map("daily_limit") @db.Decimal(15, 2)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user                User          @relation(fields: [userId], references: [id])
+  outgoingTransactions Transaction[] @relation("TransactionSource")
+  incomingTransactions Transaction[] @relation("TransactionDestination")
+
+  @@index([userId])
+  @@index([accountNumber])
+  @@index([status])
+  @@map("accounts")
+}
+
+// =============================================================================
+// Banking: Transactions
+// =============================================================================
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REQUIRES_APPROVAL
+}
+
+model Transaction {
+  id                 String            @id @default(uuid()) @db.Uuid
+  idempotencyKey     String            @unique @map("idempotency_key") @db.VarChar(255)
+  type               TransactionType
+  status             TransactionStatus @default(PENDING)
+  amount             Decimal           @db.Decimal(15, 2)
+  currency           String            @default("USD") @db.VarChar(3)
+  description        String?           @db.VarChar(500)
+  sourceAccountId    String?           @map("source_account_id") @db.Uuid
+  destinationAccountId String?         @map("destination_account_id") @db.Uuid
+  initiatedBy        String            @map("initiated_by") @db.Uuid
+  balanceBefore      Decimal?          @map("balance_before") @db.Decimal(15, 2)
+  balanceAfter       Decimal?          @map("balance_after") @db.Decimal(15, 2)
+  fraudFlagged       Boolean           @default(false) @map("fraud_flagged")
+  metadata           Json?
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  sourceAccount      Account?              @relation("TransactionSource", fields: [sourceAccountId], references: [id])
+  destinationAccount Account?              @relation("TransactionDestination", fields: [destinationAccountId], references: [id])
+  initiator          User                  @relation("TransactionInitiator", fields: [initiatedBy], references: [id])
+  approvals          TransactionApproval[]
+
+  @@index([sourceAccountId])
+  @@index([destinationAccountId])
+  @@index([initiatedBy])
+  @@index([status])
+  @@index([createdAt])
+  @@index([idempotencyKey])
+  @@index([type, status])
+  @@map("transactions")
+}
+
+model TransactionApproval {
+  id            String   @id @default(uuid()) @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  approverId    String   @map("approver_id") @db.Uuid
+  approved      Boolean
+  reason        String?  @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  approver    User        @relation(fields: [approverId], references: [id])
+
+  @@index([transactionId])
+  @@index([approverId])
+  @@map("transaction_approvals")
+}
+
+// =============================================================================
+// Infrastructure: Sessions, Audit, Password Resets
+// =============================================================================
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  refreshToken String   @unique @map("refresh_token") @db.VarChar(500)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  resource   String   @db.VarChar(100)
+  resourceId String?  @map("resource_id") @db.VarChar(255)
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_resets")
+}

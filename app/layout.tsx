@@ -1,27 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, IBM_Plex_Serif as IBM_Plex_Serif_Font, IBM_Plex_Mono } from "next/font/google";
+import { Inter, IBM_Plex_Serif as IBMPlexSerif } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({subsets: ["latin"],variable: '--font-inter'})
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
-const ibmPlexSerif = IBM_Plex_Serif_Font({
-  subsets:['latin'],
-  weight: ['400','700'],
-  variable: '--font-ibm-plex-seriff'
-})
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const ibmPlexSerif = IBMPlexSerif({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-ibm-plex-serif",
 });
 
 export const metadata: Metadata = {
-  title: "Horizon",
-  description: "Modern banking application",
+  title: "Horizon Banking",
+  description: "Modern banking application — secure, fast, reliable",
 };
 
 export default function RootLayout({
@@ -31,10 +23,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${inter.variable} ${ibmPlexSerif.variable} antialiased`}
-      >
+      <body className={`${inter.variable} ${ibmPlexSerif.variable} antialiased`}>
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
