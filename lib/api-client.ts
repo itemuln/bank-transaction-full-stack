@@ -4,10 +4,10 @@
 
 import axios from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
+// In production (Vercel), API routes are same-origin under /api
+// In development, they're also same-origin via Next.js Route Handlers
 export const apiClient = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: "/api",
   withCredentials: true, // Send cookies
   headers: {
     "Content-Type": "application/json",

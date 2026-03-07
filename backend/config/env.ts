@@ -7,7 +7,7 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(3001),
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.string().min(1),
 
   // JWT
   JWT_ACCESS_SECRET: z.string().min(32),
@@ -22,7 +22,7 @@ const envSchema = z.object({
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().default(5),
 
   // CORS
-  FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  FRONTEND_URL: z.string().default("http://localhost:3000"),
 
   // Transaction Limits
   LARGE_TRANSACTION_THRESHOLD: z.coerce.number().default(10000),
@@ -31,9 +31,9 @@ const envSchema = z.object({
 function loadEnv() {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    console.error("❌ Invalid environment variables:");
-    console.error(parsed.error.flatten().fieldErrors);
-    process.exit(1);
+    const errors = parsed.error.flatten().fieldErrors;
+    console.error("❌ Invalid environment variables:", errors);
+    throw new Error(`Invalid environment variables: ${JSON.stringify(errors)}`);
   }
   return parsed.data;
 }
