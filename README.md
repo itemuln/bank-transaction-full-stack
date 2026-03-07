@@ -1,6 +1,8 @@
 # 🏦 Horizon Banking Platform
 
 > **[🚀 Live Demo → bank-transaction-full-stack-wat7.vercel.app](https://bank-transaction-full-stack-wat7.vercel.app)**
+<img width="3412" height="1944" alt="image" src="https://github.com/user-attachments/assets/4c2d276d-fd76-45ab-a2f9-ec1d72cf2550" />
+
 
 A production-grade, full-stack banking application built with **Next.js 16**, **Prisma 7**, **PostgreSQL (Supabase)**, and deployed on **Vercel**. Features role-based access control, transaction management with approval workflows, fraud detection, and a polished dashboard UI with shadcn/ui.
 
