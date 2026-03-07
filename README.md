@@ -1,18 +1,22 @@
 # 🏦 Horizon Banking Platform
 
-A production-grade, full-stack banking application built with **Next.js 16**, **Express 5**, **Prisma 7**, and **PostgreSQL**. Features role-based access control, transaction management with approval workflows, fraud detection, and a polished dashboard UI with shadcn/ui.
+> **[🚀 Live Demo → bank-transaction-full-stack-wat7.vercel.app](https://bank-transaction-full-stack-wat7.vercel.app)**
+
+A production-grade, full-stack banking application built with **Next.js 16**, **Prisma 7**, **PostgreSQL (Supabase)**, and deployed on **Vercel**. Features role-based access control, transaction management with approval workflows, fraud detection, and a polished dashboard UI with shadcn/ui.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![Express](https://img.shields.io/badge/Express-5-lightgrey?logo=express)
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)
+![Vercel](https://img.shields.io/badge/Deployed-Vercel-black?logo=vercel)
+![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?logo=supabase)
 
 ---
 
 ## Table of Contents
 
+- [Live Demo](#live-demo)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
@@ -25,8 +29,26 @@ A production-grade, full-stack banking application built with **Next.js 16**, **
 - [Available Scripts](#available-scripts)
 - [API Reference](#api-reference)
 - [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Live Demo
+
+**🌐 [https://bank-transaction-full-stack-wat7.vercel.app](https://bank-transaction-full-stack-wat7.vercel.app)**
+
+Try it out with any of the demo accounts below:
+
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@bankingsystem.com` | `Admin@12345` |
+| **Customer** | `customer@bankingsystem.com` | `Customer@123` |
+| **Teller** | `teller@bankingsystem.com` | `Teller@123` |
+| **Manager** | `manager@bankingsystem.com` | `Manager@123` |
+
+> Each role sees a different dashboard and has different permissions — try logging in as different users to explore the full system.
 
 ---
 
@@ -43,7 +65,7 @@ A production-grade, full-stack banking application built with **Next.js 16**, **
 
 ### Security
 - **JWT Authentication** — Short-lived access tokens (15 min) + rotating refresh tokens (7 days)
-- **httpOnly Cookies** — Tokens stored in secure, httpOnly, SameSite=strict cookies
+- **httpOnly Cookies** — Tokens stored in secure, httpOnly, SameSite=lax cookies
 - **Rate Limiting** — Per-IP rate limiting on all endpoints with stricter limits on login
 - **Account Lockout** — Automatic lockout after 5 failed login attempts (15 min cooldown)
 - **Password Policy** — Enforced: uppercase, lowercase, number, special character, 8+ chars
@@ -72,124 +94,106 @@ A production-grade, full-stack banking application built with **Next.js 16**, **
 ## Architecture
 
 ```
-┌──────────────────────────┐     ┌──────────────────────────┐
-│    Next.js 16 Frontend   │     │   Express 5 REST API     │
-│    (App Router + RSC)    │────▶│   (Port 3001)            │
-│    Port 3000             │     │                          │
-│                          │     │  ┌────────────────────┐  │
-│  ┌────────────────────┐  │     │  │   Middleware Layer  │  │
-│  │  Zustand Auth Store │  │     │  │  • Auth (JWT)      │  │
-│  │  Axios API Client   │  │     │  │  • Validation (Zod)│  │
-│  │  shadcn/ui + TW4    │  │     │  │  • Rate Limiting   │  │
-│  └────────────────────┘  │     │  │  • Error Handler    │  │
-│                          │     │  └────────────────────┘  │
-│  Pages:                  │     │                          │
-│  • Dashboard (role-aware)│     │  ┌────────────────────┐  │
-│  • Accounts CRUD         │     │  │   Service Layer     │  │
-│  • Transactions          │     │  │  • AuthService      │  │
-│  • Transfer Funds        │     │  │  • BankingService   │  │
-│  • Teller Operations     │     │  └────────────────────┘  │
-│  • Approvals             │     │                          │
-│  • Admin (Users, Roles)  │     │  ┌────────────────────┐  │
-│  • Audit Logs            │     │  │  Repository Layer   │  │
-│  • Settings              │     │  │  • UserRepo         │  │
-└──────────────────────────┘     │  │  • AccountRepo      │  │
-                                 │  │  • TransactionRepo  │  │
-                                 │  │  • AuditLogRepo     │  │
-                                 │  └────────┬───────────┘  │
-                                 └───────────┼──────────────┘
-                                             │
-                                 ┌───────────▼───────────┐
-                                 │   PostgreSQL + Prisma  │
-                                 │   11 Tables, indexed   │
-                                 └────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    Vercel (Edge + Serverless)            │
+│                                                         │
+│  ┌───────────────────────┐  ┌────────────────────────┐  │
+│  │  Next.js 16 Frontend  │  │  Next.js API Routes    │  │
+│  │  (App Router + RSC)   │  │  (Serverless Functions) │  │
+│  │                       │  │                         │  │
+│  │  • Zustand Auth Store │  │  ┌───────────────────┐  │  │
+│  │  • Axios API Client   │  │  │  Service Layer    │  │  │
+│  │  • shadcn/ui + TW4    │  │  │  • AuthService    │  │  │
+│  │                       │  │  │  • BankingService  │  │  │
+│  │  Pages:               │  │  └───────────────────┘  │  │
+│  │  • Dashboard          │──│                         │  │
+│  │  • Accounts           │  │  ┌───────────────────┐  │  │
+│  │  • Transactions       │  │  │  Repository Layer │  │  │
+│  │  • Transfer Funds     │  │  │  • UserRepo       │  │  │
+│  │  • Teller Ops         │  │  │  • AccountRepo    │  │  │
+│  │  • Approvals          │  │  │  • TransactionRepo│  │  │
+│  │  • Admin Panel        │  │  │  • AuditLogRepo   │  │  │
+│  │  • Audit Logs         │  │  └────────┬──────────┘  │  │
+│  └───────────────────────┘  └───────────┼─────────────┘  │
+│                                         │                │
+└─────────────────────────────────────────┼────────────────┘
+                                          │ SSL
+                              ┌───────────▼────────────┐
+                              │  Supabase PostgreSQL 17 │
+                              │  (Connection Pooler)    │
+                              │  11 Tables, indexed     │
+                              └─────────────────────────┘
 ```
 
-The frontend proxies all `/api/*` requests to the Express backend via Next.js rewrites, so both run seamlessly in development.
+All API routes run as **Next.js Route Handlers** (serverless functions) on Vercel — no separate backend server needed in production. The service layer, repositories, and business logic are shared between the API routes.
 
 ---
 
 ## Tech Stack
 
-| Layer          | Technology                                          |
-|----------------|-----------------------------------------------------|
-| **Frontend**   | Next.js 16 (App Router), React 19, TypeScript 5     |
-| **UI**         | shadcn/ui (new-york), Tailwind CSS 4, Lucide Icons   |
-| **State**      | Zustand 5 (with persist middleware)                   |
-| **Backend**    | Express 5, Node.js (ESM)                              |
-| **Database**   | PostgreSQL 14+, Prisma 7 ORM (adapter-pg driver)      |
-| **Auth**       | JWT (jsonwebtoken), bcryptjs (12 rounds), httpOnly cookies |
-| **Validation** | Zod 4 (shared schemas between frontend & backend)     |
-| **Security**   | Helmet, CORS, in-memory rate limiting, audit logging   |
+| Layer          | Technology                                              |
+|----------------|---------------------------------------------------------|
+| **Frontend**   | Next.js 16 (App Router), React 19, TypeScript 5        |
+| **UI**         | shadcn/ui (new-york), Tailwind CSS 4, Lucide Icons     |
+| **State**      | Zustand 5 (with persist middleware)                     |
+| **API**        | Next.js Route Handlers (serverless)                     |
+| **Database**   | PostgreSQL 17 (Supabase), Prisma 7 (adapter-pg driver) |
+| **Auth**       | JWT (jsonwebtoken), bcryptjs, httpOnly cookies          |
+| **Validation** | Zod 4 (shared schemas between frontend & backend)      |
+| **Deployment** | Vercel (serverless), Supabase (managed PostgreSQL)      |
 
 ---
 
 ## Project Structure
 
-```
+```text
 bank_transaction_system/
 ├── app/                           # Next.js App Router
 │   ├── layout.tsx                 # Root layout (fonts, Toaster)
 │   ├── globals.css                # Tailwind v4 theme + custom styles
 │   ├── (auth)/                    # Auth layout group (public)
-│   │   ├── layout.tsx
 │   │   ├── sign-in/page.tsx       # Login page
 │   │   └── sign-up/page.tsx       # Registration page
-│   └── (root)/                    # Authenticated layout group
-│       ├── layout.tsx             # Sidebar + AuthGuard wrapper
-│       ├── page.tsx               # Dashboard (role-aware)
-│       ├── accounts/              # Account list + detail pages
-│       ├── transactions/          # Transaction history
-│       ├── transfer/              # Fund transfer form
-│       ├── teller/                # Teller deposit/withdrawal
-│       ├── approvals/             # Pending approvals (Manager+)
-│       ├── admin/
-│       │   ├── users/             # User management
-│       │   ├── roles/             # Roles & permissions overview
-│       │   └── audit-logs/        # Audit log viewer
-│       └── settings/              # System settings
+│   ├── (root)/                    # Authenticated layout group
+│   │   ├── layout.tsx             # Sidebar + AuthGuard wrapper
+│   │   ├── page.tsx               # Dashboard (role-aware)
+│   │   ├── accounts/              # Account list + detail pages
+│   │   ├── transactions/          # Transaction history
+│   │   ├── transfer/              # Fund transfer form
+│   │   ├── teller/                # Teller deposit/withdrawal
+│   │   ├── approvals/             # Pending approvals (Manager+)
+│   │   ├── admin/                 # User mgmt, roles, audit logs
+│   │   └── settings/              # System settings
+│   └── api/                       # Next.js API Route Handlers
+│       ├── _lib/helpers.ts        # Shared auth, cookies, pagination
+│       ├── auth/                  # register, login, logout, refresh, me
+│       ├── accounts/              # CRUD, status, transaction history
+│       ├── transactions/          # deposit, withdraw, transfer, approve
+│       ├── admin/                 # users, roles, audit-logs, stats
+│       ├── dashboard/             # customer, admin, manager stats
+│       └── health/                # Health check
 │
-├── backend/                       # Express REST API
-│   ├── server.ts                  # Entry point & middleware chain
+├── backend/                       # Business logic & data layer
 │   ├── config/
 │   │   ├── env.ts                 # Zod-validated environment config
-│   │   └── database.ts            # Prisma client singleton
+│   │   └── database.ts            # Prisma client singleton (pooled)
 │   ├── infrastructure/
 │   │   ├── audit-logger.ts        # Audit log utility
 │   │   └── token-service.ts       # JWT sign/verify helpers
-│   ├── middleware/
-│   │   ├── auth.middleware.ts      # authenticate + authorize(permissions)
-│   │   ├── validation.middleware.ts
-│   │   ├── rate-limit.middleware.ts
-│   │   └── error-handler.ts       # Global error handler + AppError
 │   ├── repositories/              # Data access layer (Prisma queries)
-│   ├── services/                  # Business logic
-│   │   ├── auth.service.ts        # Registration, login, tokens, password reset
-│   │   └── banking.service.ts     # Accounts, transactions, approvals
-│   └── routes/                    # Route handlers
-│       ├── auth.routes.ts
-│       ├── account.routes.ts
-│       ├── transaction.routes.ts
-│       ├── admin.routes.ts
-│       └── dashboard.routes.ts
+│   └── services/                  # Business logic
+│       ├── auth.service.ts        # Registration, login, tokens
+│       └── banking.service.ts     # Accounts, transactions, approvals
 │
 ├── components/
 │   ├── ui/                        # shadcn/ui primitives (20+ components)
 │   └── dashboard/                 # Banking-specific components
-│       ├── Sidebar.tsx            # Role-aware navigation
-│       ├── AuthGuard.tsx          # Route protection HOC
-│       ├── StatCard.tsx           # Metric display card
-│       ├── AccountCard.tsx        # Account summary card
-│       ├── TransactionTable.tsx   # Transaction history table
-│       ├── TransferForm.tsx       # Account-to-account transfer
-│       └── TellerTransactionForm.tsx
 │
 ├── lib/
 │   ├── utils.ts                   # formatAmount, formatDateTime, cn()
 │   ├── api-client.ts              # Axios instance with 401 interceptor
 │   ├── api-hooks.ts               # All API fetch functions
-│   └── stores/
-│       └── auth-store.ts          # Zustand auth state (with persist)
+│   └── stores/auth-store.ts       # Zustand auth state (with persist)
 │
 ├── packages/shared/
 │   ├── types/index.ts             # DTOs, enums, API response types
@@ -199,8 +203,9 @@ bank_transaction_system/
 │   ├── schema.prisma              # Database schema (11 models)
 │   └── seed.ts                    # Demo data seeder
 │
+├── vercel.json                    # Vercel deployment config
 ├── prisma.config.ts               # Prisma 7 configuration
-├── next.config.ts                 # API proxy rewrite config
+├── next.config.ts                 # Server external packages config
 ├── package.json
 └── tsconfig.json
 ```
@@ -334,7 +339,7 @@ User ──┬── UserRole ───── Role ───── RolePermissio
 | Password hashing            | bcryptjs with 12 salt rounds                   |
 | Access tokens               | JWT, 15-minute expiry, signed with HS256        |
 | Refresh tokens              | JWT, 7-day expiry, stored in DB, rotated on use |
-| Token storage               | httpOnly, Secure, SameSite=strict cookies       |
+| Token storage               | httpOnly, Secure, SameSite=lax cookies          |
 | Token auto-refresh          | Axios 401 interceptor → transparent retry       |
 | Account lockout             | 5 failed attempts → 15 min lockout              |
 | Rate limiting (global)      | 100 requests / 15 min per IP                    |
@@ -476,6 +481,32 @@ See the full **[API Guide →](./API_GUIDE.md)** for complete endpoint documenta
 5. Open a Pull Request
 
 Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
+
+---
+
+## Deployment
+
+This project is deployed on **Vercel** with a **Supabase** PostgreSQL database.
+
+### Vercel Environment Variables
+
+Set these in your Vercel project settings (Settings → Environment Variables):
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Supabase pooler connection string (port 6543) |
+| `JWT_ACCESS_SECRET` | Min 32 characters |
+| `JWT_REFRESH_SECRET` | Min 32 characters |
+
+### Deploy Your Own
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/itemuln/bank-transaction-full-stack)
+
+1. Create a [Supabase](https://supabase.com) project
+2. Copy the **connection pooler** URL (port 6543, transaction mode)
+3. Deploy to Vercel and set the environment variables above
+4. Run `npx prisma db push` against your Supabase database
+5. Run `npx tsx prisma/seed.ts` to seed demo data
 
 ---
 
