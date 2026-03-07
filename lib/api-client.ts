@@ -16,28 +16,48 @@ export const apiClient = axios.create({
 });
 
 // Response interceptor: auto-refresh on 401
+let isRefreshing = false;
+let failedQueue: { resolve: (v: unknown) => void; reject: (e: unknown) => void }[] = [];
+
+function processQueue(error: unknown) {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(undefined)));
+  failedQueue = [];
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 and we haven't retried yet, try refreshing the token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        await apiClient.post("/auth/refresh");
-        // Retry the original request
-        return apiClient(originalRequest);
-      } catch {
-        // Refresh failed — redirect to login
-        if (typeof window !== "undefined") {
-          window.location.href = "/sign-in";
-        }
-        return Promise.reject(error);
-      }
+    // Never try to refresh the refresh request itself — prevents infinite loop
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      originalRequest.url === "/auth/refresh" ||
+      originalRequest.url === "/auth/login"
+    ) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    // If already refreshing, queue this request
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then(() => apiClient(originalRequest));
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      await apiClient.post("/auth/refresh");
+      processQueue(null);
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      processQueue(refreshError);
+      return Promise.reject(error);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );

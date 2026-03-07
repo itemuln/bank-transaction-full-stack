@@ -18,17 +18,29 @@ interface AuthGuardProps {
 export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const [authChecked, setAuthChecked] = React.useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      fetchUser().catch(() => {
-        router.push("/sign-in");
-      });
-    }
-  }, [isAuthenticated, fetchUser, router]);
+    let cancelled = false;
 
-  // Loading state
-  if (isLoading || (!isAuthenticated && !user)) {
+    async function checkAuth() {
+      if (!isAuthenticated) {
+        try {
+          await fetchUser();
+        } catch {
+          if (!cancelled) router.replace("/sign-in");
+          return;
+        }
+      }
+      if (!cancelled) setAuthChecked(true);
+    }
+
+    checkAuth();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Still checking auth
+  if (isLoading || !authChecked) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -39,8 +51,9 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     );
   }
 
-  // Not authenticated
+  // Not authenticated after check completed
   if (!isAuthenticated || !user) {
+    router.replace("/sign-in");
     return null;
   }
 

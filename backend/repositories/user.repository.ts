@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { prisma } from "../config/database";
-import { Prisma } from "../../lib/generated/prisma/client.js";
+import { Prisma } from "../../lib/generated/prisma/client";
 
 export class UserRepository {
   async findById(id: string) {
